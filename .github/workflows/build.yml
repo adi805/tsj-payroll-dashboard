@@ -12,9 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: dashboard
 
     steps:
       - name: Checkout
@@ -33,6 +30,7 @@ jobs:
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
+        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
           python -m pip install --upgrade pip
@@ -40,6 +38,7 @@ jobs:
           pip install pyinstaller==6.3.0
 
       - name: PyInstaller onefile
+        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
           pyinstaller --noconfirm --onefile --windowed \
@@ -48,18 +47,19 @@ jobs:
             app_gui.py
 
       - name: Package release zip
+        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
-          cd dashboard/dist
-          zip -j ../../KitUpahTSJ-windows.zip KitUpahTSJ.exe
-          cd ../..
+          cd dist
+          zip -j ..\KitUpahTSJ-windows.zip KitUpahTSJ.exe
+          cd ..
           ls -la KitUpahTSJ-windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitUpahTSJ-windows
-          path: KitUpahTSJ-windows.zip
+          path: ${{ github.workspace }}\dashboard\KitUpahTSJ-windows.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -82,9 +82,9 @@ jobs:
             ### Cara Pakai
             1. Isi **Folder closingan** — folder berisi 12 file closing bulanan
             2. (Opsional) Isi **File output** — default `Kit-Upah-TSJ-AUTO.xlsx` di folder parent
-            3. Klik **▶  PROSES KIT UPAH** — log berjalan realtime, otomatis tersimpan ke `logs/run-<timestamp>.log`
+            3. Klik **PROSES KIT UPAH** — log berjalan realtime, otomatis tersimpan ke `logs/run-<timestamp>.log`
             4. Klik **Buka file hasil** untuk membuka Excel
-            5. Log bisa di-copy: Ctrl+A / Ctrl+C, klik kanan → Copy, atau tombol "Copy log"
+            5. Log toolbar: **SALIN SEMUA LOG** (copy 1-klik), Pilih Semua, Simpan ke File, Bersihkan
 
             ### Update Otomatis
             Tools → **Cek Update** → otomatis download release baru, close app, replace exe, restart.
@@ -92,7 +92,7 @@ jobs:
             ### Source
             https://github.com/adi805/tsj-payroll-dashboard
           files: |
-            KitUpahTSJ-windows.zip
+            ${{ github.workspace }}\dashboard\KitUpahTSJ-windows.zip
           draft: false
           prerelease: false
           generate_release_notes: true
