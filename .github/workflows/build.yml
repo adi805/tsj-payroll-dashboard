@@ -26,11 +26,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-${{ hashFiles('dashboard/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
           python -m pip install --upgrade pip
@@ -38,7 +37,6 @@ jobs:
           pip install pyinstaller==6.3.0
 
       - name: PyInstaller onefile
-        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
           pyinstaller --noconfirm --onefile --windowed \
@@ -47,7 +45,6 @@ jobs:
             app_gui.py
 
       - name: Package release zip
-        working-directory: ${{ github.workspace }}\dashboard
         shell: bash
         run: |
           cd dist
@@ -59,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: KitUpahTSJ-windows
-          path: ${{ github.workspace }}\dashboard\KitUpahTSJ-windows.zip
+          path: KitUpahTSJ-windows.zip
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -92,7 +89,7 @@ jobs:
             ### Source
             https://github.com/adi805/tsj-payroll-dashboard
           files: |
-            ${{ github.workspace }}\dashboard\KitUpahTSJ-windows.zip
+            KitUpahTSJ-windows.zip
           draft: false
           prerelease: false
           generate_release_notes: true
