@@ -1,0 +1,98 @@
+name: build-windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-${{ hashFiles('dashboard/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.3.0
+
+      - name: PyInstaller onefile
+        shell: bash
+        run: |
+          pyinstaller --noconfirm --onefile --windowed \
+            --name "KitUpahTSJ" \
+            --add-data "pipeline_upah.py;." \
+            app_gui.py
+
+      - name: Package release zip
+        shell: bash
+        run: |
+          cd dashboard/dist
+          zip -j ../../KitUpahTSJ-windows.zip KitUpahTSJ.exe
+          cd ../..
+          ls -la KitUpahTSJ-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitUpahTSJ-windows
+          path: KitUpahTSJ-windows.zip
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Kit Upah TSJ ${{ github.ref_name }}
+          body: |
+            ## Kit Upah TSJ — Dashboard Payroll
+
+            **Versi:** ${{ github.ref_name }}
+            **Target:** Windows 7 SP1 / 10 / 11 (64-bit)
+            **Ukuran:** ±12-15 MB (onefile, self-contained)
+
+            ### Install
+            1. Download `KitUpahTSJ-windows.zip` di bawah
+            2. Extract ke folder mana saja (mis. `C:\KitUpahTSJ\`)
+            3. Double-click `KitUpahTSJ.exe`
+            4. (Win 7 saja) Install UCRT KB2999226 kalau diminta — https://support.microsoft.com/kb/2999226
+
+            ### Cara Pakai
+            1. Isi **Folder closingan** — folder berisi 12 file closing bulanan
+            2. (Opsional) Isi **File output** — default `Kit-Upah-TSJ-AUTO.xlsx` di folder parent
+            3. Klik **▶  PROSES KIT UPAH** — log berjalan realtime, otomatis tersimpan ke `logs/run-<timestamp>.log`
+            4. Klik **Buka file hasil** untuk membuka Excel
+            5. Log bisa di-copy: Ctrl+A / Ctrl+C, klik kanan → Copy, atau tombol "Copy log"
+
+            ### Update Otomatis
+            Tools → **Cek Update** → otomatis download release baru, close app, replace exe, restart.
+
+            ### Source
+            https://github.com/adi805/tsj-payroll-dashboard
+          files: |
+            KitUpahTSJ-windows.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true

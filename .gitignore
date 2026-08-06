@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+*.egg-info/
+
+# PyInstaller
+build/
+dist/
+*.onefile-build/
+
+# App runtime
+logs/
+_update/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Test artifacts
+/test_output/
+/tmp_*.xlsx
+gui_preview.png
+_shot.py
+__pycache__/
