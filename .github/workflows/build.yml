@@ -47,9 +47,7 @@ jobs:
       - name: Package release zip
         shell: bash
         run: |
-          cd dist
-          zip -j ..\KitUpahTSJ-windows.zip KitUpahTSJ.exe
-          cd ..
+          python -c "import zipfile, os; z=zipfile.ZipFile('KitUpahTSJ-windows.zip','w',zipfile.ZIP_DEFLATED); z.write('dist/KitUpahTSJ.exe','KitUpahTSJ.exe'); z.close(); print('zip ok:', os.path.getsize('KitUpahTSJ-windows.zip'),'bytes')"
           ls -la KitUpahTSJ-windows.zip
 
       - name: Upload artifact
