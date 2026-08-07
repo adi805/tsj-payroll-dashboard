@@ -37,14 +37,19 @@ jobs:
           pip install "pyinstaller==5.13.2"
 
       # Win 7 TANPA KB2999226: DLL Universal C Runtime (ucrtbase.dll +
-      # api-ms-win-crt-*.dll) di-stage dari System32 runner, lalu di-bundle
-      # ke DALAM exe onefile. Target Win7 tidak perlu install apa pun.
+      # api-ms-win-crt-*.dll) diambil dari WinSxS (component store UCRT —
+      # System32 runner tidak menyimpan file api-ms-win-crt-*), lalu
+      # di-bundle ke DALAM exe onefile. Target Win7 zero-install.
       - name: Stage UCRT DLLs (bundling buat Win7, zero-install)
         shell: powershell
         run: |
+          $srcDir = Get-ChildItem C:\Windows\WinSxS -Directory -Filter 'amd64_microsoft-windows-ucrt*' |
+                    Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $srcDir) { throw "WinSxS UCRT directory not found" }
+          Write-Host "UCRT source: $($srcDir.FullName)"
           New-Item -ItemType Directory -Force -Path ucrt | Out-Null
-          Copy-Item C:\Windows\System32\ucrtbase.dll ucrt\
-          Copy-Item C:\Windows\System32\api-ms-win-crt-*.dll ucrt\
+          Copy-Item (Join-Path $srcDir.FullName 'ucrtbase.dll') ucrt\ -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $srcDir.FullName 'api-ms-win-crt-*.dll') ucrt\ -ErrorAction SilentlyContinue
           $count = (Get-ChildItem ucrt -Filter *.dll).Count
           Write-Host "UCRT DLL staged: $count files"
           if ($count -lt 10) { throw "UCRT staging failed - too few DLLs ($count)" }
