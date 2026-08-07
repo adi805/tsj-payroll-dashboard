@@ -2,6 +2,11 @@
 
 All notable changes to Kit Upah TSJ Dashboard.
 
+## [1.0.4] - 2026-08-07
+
+### Fixed
+- SALIN SEMUA LOG: fix button tidak berfungsi (clipboard copy) pada Windows dengan tkinter tertentu — widget state dinormalkan sebelum get() agar clipboard tidak kosong
+
 ## [1.0.3] - 2026-08-07
 
 ### Fixed
