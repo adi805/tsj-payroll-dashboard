@@ -63,6 +63,65 @@ KATEGORI = [
     ('PINJAMAN KARYAWAN', 'X', 6),
 ]
 
+# ============ AUTO-DETECT COLUMNS (Phase 1) ============
+def detect_columns(ws, header_rows=(5, 6, 7)):
+    """Auto-detect column numbers by scanning header rows (5/6/7).
+    Returns dict of normalized_header_name -> column_number.
+    Normalisasi: uppercase, spasi/tebal射 jadi underscore.
+    Scan ALL non-None cells in header_rows; later rows override earlier.
+    """
+    header_map = {}
+    for r in header_rows:
+        for c in range(1, (ws.max_column or 30) + 1):
+            v = ws.cell(r, c).value
+            if v is None:
+                continue
+            key = str(v).strip().upper().replace(' ', '_').replace('.', '')
+            # Handle combo labels like TUNJANGAN+row6, PREMIs in row7
+            header_map[key] = c
+    return header_map
+
+def col_by_name(ws, names_dict, *names, fallback_col=None):
+    """Find first matching column from a list of acceptable names.
+    Returns column number or fallback_col (default None)."""
+    for name in names:
+        key = name.strip().upper().replace(' ', '_').replace('.', '')
+        if key in names_dict:
+            return names_dict[key]
+    return fallback_col
+
+def detect_roster_columns(ws, header_map):
+    """Map named columns from auto-detected header_map.
+    Returns dict with keys: NIK, NAMA, and each KATEGORI.
+    All values are column numbers (1-indexed).
+    
+    Mapping strategy:
+    - NIK/NAMA: row 5
+    - PREMI UMUM/KEHADIRAN/PRUNING: row 7 col 9/10/11
+    - TUNJANGAN BBM/JABATAN/LAINNYA: row 5 col 12/13/14
+    - TIDAK BASIS: row 6 col 20
+    - DENDA/PINJAMAN TENGAH BULAN/PINJAMAN KARYAWAN: row 6 col 22/23/24
+    """
+    return {
+        'NIK':  col_by_name(ws, header_map, 'NIK', fallback_col=2),
+        'NAMA': col_by_name(ws, header_map, 'NAMA', fallback_col=3),
+        # Row 7 detail categories (UMUM=9, KEHADIRAN=10, PRUNING=11)
+        'PREMI UMUM':        col_by_name(ws, header_map, 'UMUM', fallback_col=9),
+        'PREMI KEHADIRAN':  col_by_name(ws, header_map, 'KEHADIRAN', fallback_col=10),
+        'PRUNING P':         col_by_name(ws, header_map, 'PRUNING_P', 'PRUNING.P', fallback_col=11),
+        # Row 5 TUNJANGAN group (BBM=12, JABATAN=13, LAINNYA=14)
+        'TUNJANGAN BBM':      col_by_name(ws, header_map, 'BBM', fallback_col=12),
+        'TUNJANGAN JABATAN':  col_by_name(ws, header_map, 'JABATAN', fallback_col=13),
+        'TUNJANGAN LAINNYA':  col_by_name(ws, header_map, 'LAINNYA', fallback_col=14),
+        # OVER TIME (row 5 col 15)
+        'OVER TIME':         col_by_name(ws, header_map, 'OVER_TIME', fallback_col=15),
+        # Row 6 POTONGAN group
+        'TIDAK BASIS':            col_by_name(ws, header_map, 'TIDAK BASIS', 'TIDAK_BASIS', fallback_col=20),
+        'DENDA':                  col_by_name(ws, header_map, 'DENDA', fallback_col=22),
+        'PINJAMAN TENGAH BULAN':  col_by_name(ws, header_map, 'PINJAMAN TENGAH BULAN', 'PINJAMAN_TENGAH_BULAN', fallback_col=23),
+        'PINJAMAN KARYAWAN':      col_by_name(ws, header_map, 'PINJAMAN KARYAWAN', 'PINJAMAN_KARYAWAN', fallback_col=24),
+    }
+
 # ---- Styles ----
 HDR_FILL  = PatternFill('solid', fgColor='D9D9D9')
 NOTE_FILL = PatternFill('solid', fgColor='FFF2CC')
@@ -106,35 +165,61 @@ wbf = openpyxl.load_workbook(BASE + 'Data Upah TSJ Juli 2026.xlsx', data_only=Fa
 ws  = wbv['Upah Juli 2026']
 wf  = wbf['Upah Juli 2026']
 
-def rebuild_data_input(ws, wf, ds_path):
-    """Auto-rebuild ledger DATA INPUT dari roster mentah + Data Security (sheet DATA INPUT gak wajib lagi).
-    NIK/NAMA untuk baris audit diambil via mapping baris (roster_row = ds_row + 82) karena DS tidak punya kolom NIK.
-    Aturan rebuild DIVERIFIED: 270/270 cocok dgn ledger asli (265 roster cols I-X + 5 BBM audit DS col AU)."""
-    COLMAP = {9: 'PREMI UMUM', 10: 'PREMI KEHADIRAN', 12: 'TUNJANGAN BBM', 13: 'TUNJANGAN JABATAN',
-              14: 'TUNJANGAN LAINNYA', 15: 'OVER TIME', 20: 'TIDAK BASIS', 22: 'DENDA',
-              23: 'PINJAMAN TENGAH BULAN', 24: 'PINJAMAN KARYAWAN'}
-    COL_ORDER = [9, 10, 12, 13, 14, 15, 20, 22, 23, 24]
+# Phase 1: auto-detect columns by header name (robust against column reordering)
+_header_map = detect_columns(ws)
+_col = detect_roster_columns(ws, _header_map)
+print(f'  AUTO-DETECT columns: NIK=col{_col["NIK"]} NAMA=col{_col["NAMA"]} '
+      f'UMUM=col{_col["PREMI UMUM"]} KEHADIRAN=col{_col["PREMI KEHADIRAN"]} '
+      f'BBM=col{_col["TUNJANGAN BBM"]} JABATAN=col{_col["TUNJANGAN JABATAN"]} '
+      f'LAIN=col{_col["TUNJANGAN LAINNYA"]} OT=col{_col["OVER TIME"]} '
+      f'TB=col{_col["TIDAK BASIS"]} DENDA=col{_col["DENDA"]} '
+      f'PTB=col{_col["PINJAMAN TENGAH BULAN"]} PK=col{_col["PINJAMAN KARYAWAN"]}',
+      flush=True)
+
+def rebuild_data_input(ws, wf, ds_path, col_map):
+    """Auto-rebuild ledger DATA INPUT dari roster mentah + Data Security.
+    NIK/NAMA untuk baris audit diambil via mapping baris (roster_row = ds_row + 82)
+    karena DS tidak punya kolom NIK.
+    Aturan rebuild DIVERIFIED: 270/270 cocok dgn ledger asli (265 roster cols I-X + 5 BBM audit DS col AU).
+    
+    col_map: dict from detect_roster_columns() — all column numbers auto-detected.
+    """
+    COL_ORDER = [
+        col_map['PREMI UMUM'], col_map['PREMI KEHADIRAN'],
+        col_map['TUNJANGAN BBM'], col_map['TUNJANGAN JABATAN'],
+        col_map['TUNJANGAN LAINNYA'], col_map['OVER TIME'],
+        col_map['TIDAK BASIS'], col_map['DENDA'],
+        col_map['PINJAMAN TENGAH BULAN'], col_map['PINJAMAN KARYAWAN'],
+    ]
+    COLMAP_NAMES = [
+        'PREMI UMUM', 'PREMI KEHADIRAN', 'TUNJANGAN BBM', 'TUNJANGAN JABATAN',
+        'TUNJANGAN LAINNYA', 'OVER TIME', 'TIDAK BASIS', 'DENDA',
+        'PINJAMAN TENGAH BULAN', 'PINJAMAN KARYAWAN',
+    ]
+    NIK_COL = col_map['NIK']
+    NAMA_COL = col_map['NAMA']
     wb_tmp = openpyxl.Workbook()
     st = wb_tmp.active
     st.title = 'DATA INPUT'
     st.append(['TGL', 'NIK', 'NAMA', 'KATEGORI', 'NOMINAL', 'KET', 'SUMBER'])
     # --- 265 dari roster 'Upah Juli 2026' ---
     for r in range(9, 129):
-        nik = ws.cell(r, 2).value
+        nik = ws.cell(r, NIK_COL).value
         if nik is None:
             continue
         nik = str(nik).strip()
-        nama = ws.cell(r, 3).value
-        for c in COL_ORDER:
+        nama = ws.cell(r, NAMA_COL).value
+        for i, c in enumerate(COL_ORDER):
             v = ws.cell(r, c).value
             if v is None or (isinstance(v, (int, float)) and v == 0):
                 continue
             fcell = wf.cell(r, c)
             if fcell.data_type == 'f':
-                ket = f'formula asli {chr(64+c)}{r} (={str(fcell.value)[1:]}) - dibekukan'
+                ket = f'formula asli {get_column_letter(c)}{r} (={str(fcell.value)[1:]}) - dibekukan'
             else:
-                ket = f'hardcoded asli {chr(64+c)}{r}'
-            st.append(['2026-07-31', nik, nama, COLMAP[c], float(v), ket, 'MIGRASI dari Upah Juli 2026'])
+                ket = f'hardcoded asli {get_column_letter(c)}{r}'
+            st.append(['2026-07-31', nik, nama, COLMAP_NAMES[i], float(v),
+                       ket, 'MIGRASI dari Upah Juli 2026'])
     # --- 5 BBM audit dari Data Security JULI 2026 col AU(47), mapping by row order ---
     wbd = openpyxl.load_workbook(ds_path, data_only=True)
     wsd = wbd['JULI 2026']
@@ -147,8 +232,8 @@ def rebuild_data_input(ws, wf, ds_path):
         if wsd.cell(r, 1).value == 'T O T A L':
             continue
         roster_row = r + 82
-        nik = str(ws.cell(roster_row, 2).value).strip()
-        nama = ws.cell(roster_row, 3).value
+        nik = str(ws.cell(roster_row, NIK_COL).value).strip()
+        nama = ws.cell(roster_row, NAMA_COL).value
         st.append(['2026-07-31', nik, nama, 'TUNJANGAN BBM', float(v),
                    f'AUDIT source-file: lupa masukin di Upah asli (Upah r{roster_row} col L kosong)',
                    f'Data Security TSJ Juli 2026.xlsx!JULI 2026!AU{r}'])
@@ -159,7 +244,7 @@ if 'DATA INPUT' in wbv.sheetnames:
     di = wbv['DATA INPUT']
 else:
     print('  WARN: sheet DATA INPUT tidak ada di file sumber - auto-rebuild dari roster + Data Security...', flush=True)
-    di = rebuild_data_input(ws, wf, BASE + 'Data Security TSJ Juli 2026.xlsx')
+    di = rebuild_data_input(ws, wf, BASE + 'Data Security TSJ Juli 2026.xlsx', _col)
 _backup_path = BASE + 'Data Upah TSJ Juli 2026.ASLI-backup.xlsx'
 if os.path.exists(_backup_path):
     wba = openpyxl.load_workbook(_backup_path, data_only=True)
@@ -231,8 +316,8 @@ roster_niks = set()
 roster_with_nik = 0
 roster_no_nik = []
 for r in range(9, 129):
-    nik = ws.cell(r, 2).value
-    nama = ws.cell(r, 3).value
+    nik = ws.cell(r, _col['NIK']).value
+    nama = ws.cell(r, _col['NAMA']).value
     if nama:
         if nik is not None:
             roster_niks.add(str(nik).strip())
@@ -298,7 +383,7 @@ for r in range(9, 129):
 
     # c1-c7 from MUARA
     ws_out.cell(r, 1, roster_count)
-    nik_raw = ws.cell(r, 2).value
+    nik_raw = ws.cell(r, _col['NIK']).value
     nik_txt = str(nik_raw).strip() if nik_raw is not None else ''
     c2 = ws_out.cell(r, 2, nik_txt if nik_txt else None)
     c2.number_format = '@'  # force TEXT for SUMIFS
