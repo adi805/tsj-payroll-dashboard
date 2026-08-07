@@ -105,7 +105,61 @@ wbv = openpyxl.load_workbook(BASE + 'Data Upah TSJ Juli 2026.xlsx', data_only=Tr
 wbf = openpyxl.load_workbook(BASE + 'Data Upah TSJ Juli 2026.xlsx', data_only=False)
 ws  = wbv['Upah Juli 2026']
 wf  = wbf['Upah Juli 2026']
-di  = wbv['DATA INPUT']
+
+def rebuild_data_input(ws, wf, ds_path):
+    """Auto-rebuild ledger DATA INPUT dari roster mentah + Data Security (sheet DATA INPUT gak wajib lagi).
+    NIK/NAMA untuk baris audit diambil via mapping baris (roster_row = ds_row + 82) karena DS tidak punya kolom NIK.
+    Aturan rebuild DIVERIFIED: 270/270 cocok dgn ledger asli (265 roster cols I-X + 5 BBM audit DS col AU)."""
+    COLMAP = {9: 'PREMI UMUM', 10: 'PREMI KEHADIRAN', 12: 'TUNJANGAN BBM', 13: 'TUNJANGAN JABATAN',
+              14: 'TUNJANGAN LAINNYA', 15: 'OVER TIME', 20: 'TIDAK BASIS', 22: 'DENDA',
+              23: 'PINJAMAN TENGAH BULAN', 24: 'PINJAMAN KARYAWAN'}
+    COL_ORDER = [9, 10, 12, 13, 14, 15, 20, 22, 23, 24]
+    wb_tmp = openpyxl.Workbook()
+    st = wb_tmp.active
+    st.title = 'DATA INPUT'
+    st.append(['TGL', 'NIK', 'NAMA', 'KATEGORI', 'NOMINAL', 'KET', 'SUMBER'])
+    # --- 265 dari roster 'Upah Juli 2026' ---
+    for r in range(9, 129):
+        nik = ws.cell(r, 2).value
+        if nik is None:
+            continue
+        nik = str(nik).strip()
+        nama = ws.cell(r, 3).value
+        for c in COL_ORDER:
+            v = ws.cell(r, c).value
+            if v is None or (isinstance(v, (int, float)) and v == 0):
+                continue
+            fcell = wf.cell(r, c)
+            if fcell.data_type == 'f':
+                ket = f'formula asli {chr(64+c)}{r} (={str(fcell.value)[1:]}) - dibekukan'
+            else:
+                ket = f'hardcoded asli {chr(64+c)}{r}'
+            st.append(['2026-07-31', nik, nama, COLMAP[c], float(v), ket, 'MIGRASI dari Upah Juli 2026'])
+    # --- 5 BBM audit dari Data Security JULI 2026 col AU(47), mapping by row order ---
+    wbd = openpyxl.load_workbook(ds_path, data_only=True)
+    wsd = wbd['JULI 2026']
+    for r in range(8, 17):
+        v = wsd.cell(r, 47).value
+        if v is None or (isinstance(v, (int, float)) and v == 0):
+            continue
+        if wsd.cell(r, 2).value is None:
+            continue
+        if wsd.cell(r, 1).value == 'T O T A L':
+            continue
+        roster_row = r + 82
+        nik = str(ws.cell(roster_row, 2).value).strip()
+        nama = ws.cell(roster_row, 3).value
+        st.append(['2026-07-31', nik, nama, 'TUNJANGAN BBM', float(v),
+                   f'AUDIT source-file: lupa masukin di Upah asli (Upah r{roster_row} col L kosong)',
+                   f'Data Security TSJ Juli 2026.xlsx!JULI 2026!AU{r}'])
+    wbd.close()
+    return st
+
+if 'DATA INPUT' in wbv.sheetnames:
+    di = wbv['DATA INPUT']
+else:
+    print('  WARN: sheet DATA INPUT tidak ada di file sumber - auto-rebuild dari roster + Data Security...', flush=True)
+    di = rebuild_data_input(ws, wf, BASE + 'Data Security TSJ Juli 2026.xlsx')
 _backup_path = BASE + 'Data Upah TSJ Juli 2026.ASLI-backup.xlsx'
 if os.path.exists(_backup_path):
     wba = openpyxl.load_workbook(_backup_path, data_only=True)
