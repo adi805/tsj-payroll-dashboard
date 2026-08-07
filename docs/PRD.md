@@ -48,7 +48,7 @@ Pipeline `pipeline_upah.py` (CLI, Python 3.9) sudah jalan dan menghasilkan Excel
 | F8 | `--selftest` CLI mode | Headless test pipeline tanpa GUI, exit code 0/1 |
 
 ## 📊 Success Metrics
-- Runs di Win 7 SP1 x64 zero install (cukup UCRT KB2999226)
+- Runs di Win 7 SP1 x64 zero install (UCRT dibundel di dalam exe sejak v1.0.1 — tidak perlu install apa pun)
 - 1-click process (isi folder → klik tombol → selesai)
 - Log file selalu ter-generate per run
 - Update tanpa download manual (Cek Update dari app)

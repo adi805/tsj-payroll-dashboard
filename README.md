@@ -6,18 +6,19 @@
 |------|-------|
 | Bahasa | Python 3.9 (kompatibel Windows 7 SP1+) |
 | GUI | Tkinter (built-in, no Electron, no browser) |
-| Packager | PyInstaller 6.3 (`--onefile` self-contained) |
+| Packager | PyInstaller 5.13.2 (`--onefile` self-contained) |
 | Ukuran exe | ±12-15 MB |
 | RAM idle | ±40-60 MB |
 | Disk | Tidak ada (portable, no install) |
 | Network | Hanya saat klik "Cek Update" |
+| UCRT (Win 7) | ✅ Dibundel di dalam exe (v1.0.1+) — zero install |
 
 ## 🎯 Untuk User (Finance)
 
 1. **Download** `KitUpahTSJ-windows.zip` dari [Releases](../../releases)
 2. **Extract** ke folder mana saja (mis. `Desktop\KitUpahTSJ\`)
 3. **Double-click** `KitUpahTSJ.exe`
-4. **Win 7 saja**: kalau error "api-ms-win-crt-runtime-l1-1-0.dll missing", install [UCRT KB2999226](https://support.microsoft.com/kb/2999226) — 1 kali seumur hidup
+4. **Win 7**: UCRT (`ucrtbase.dll` + `api-ms-win-crt-*`) sudah dibundel di dalam exe sejak v1.0.1 — **langsung jalan, tanpa install apa pun**
 5. Isi **Folder closingan** → klik **▶  PROSES KIT UPAH** → tunggu selesai → klik **Buka file hasil**
 
 **Update otomatis**: Tools → Cek Update. Tidak perlu download manual lagi.
@@ -49,7 +50,12 @@ python app_gui.py --selftest ../closingan-juli-2026 /tmp/out.xlsx
 
 ### Build lokal (butuh Windows)
 ```bash
-pip install pyinstaller==6.3.0
+pip install pyinstaller==5.13.2
+# (opsional) staging UCRT buat target Win7:
+#   New-Item -ItemType Directory -Force ucrt
+#   Copy-Item C:\Windows\System32\ucrtbase.dll ucrt\
+#   Copy-Item C:\Windows\System32\api-ms-win-crt-*.dll ucrt\
+#   lalu tambahkan --add-binary "ucrt\<dll>;." per DLL ke perintah di bawah
 pyinstaller --noconfirm --onefile --windowed \
   --name "KitUpahTSJ" \
   --add-data "pipeline_upah.py;." \
@@ -59,8 +65,8 @@ pyinstaller --noconfirm --onefile --windowed \
 
 ### Release flow
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 # GitHub Action auto-build → publish Release dengan zip asset
 ```
 

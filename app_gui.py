@@ -6,7 +6,7 @@ GUI wrapper (tkinter) untuk pipeline_upah.py + auto-update dari GitHub repo.
 """
 import os, sys, json, queue, runpy, shutil, threading, time, traceback, datetime, zipfile
 
-APP_VERSION = '1.0.0'
+APP_VERSION = '1.0.1'
 APP_TITLE = 'Kit Upah TSJ — Dashboard'
 
 GH_REPO = 'adi805/tsj-payroll-dashboard'

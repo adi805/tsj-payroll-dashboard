@@ -89,14 +89,14 @@
 | Python 3.9.x | ✅ Last supported | Bundled di PyInstaller |
 | tkinter (Tcl/Tk 8.6) | ✅ Built-in | PyInstaller bundles Tcl |
 | openpyxl | ✅ Pure Python | Works |
-| PyInstaller 6.3 | ✅ Tested Win 7 | onefile boot OK |
+| PyInstaller 5.13.2 | ✅ Tested Win 7 | onefile boot OK (v6+ tidak dijamin Win7 — pin 5.13.2) |
 | DPI awareness (shcore.dll) | ⚠️ Optional | Try/except wrapped |
-| UCRT (api-ms-win-crt-runtime) | ⚠️ KB2999226 | Win 7 default missing — fail-fast detect |
+| UCRT (api-ms-win-crt-runtime) | ✅ DIBUNDEL di exe | ucrtbase.dll + api-ms-win-crt-*.dll di dalam bundle (v1.0.1+) — zero install |
 | Emoji (U+1F600+) | ❌ Font gap | Tidak ada di source code |
 | Non-ASCII (—, …, •, →, ▶) | ✅ Segoe UI Symbol | Used sparingly |
 | Segoe UI font | ✅ Built-in Win 7+ | Default font |
 
-**Win 7 fail-fast:** kalau `api-ms-win-crt-runtime-l1-1-0.dll` missing, app crash dengan error "missing DLL" + link ke KB2999226. Solusi: embed check di `__init__`:
+**UCRT bundling (v1.0.1+):** DLL Universal C Runtime (`ucrtbase.dll` + `api-ms-win-crt-*.dll`) ikut ter-bundle **DI DALAM exe** (PyInstaller `--add-binary`, di-stage dari `C:\Windows\System32` di build runner). **Win 7 jalan tanpa install KB2999226 / apa pun.** Check di `__init__` di bawah tetap ada sebagai belt-and-suspenders (kalau ada DLL yang gagal load → dialog informatif, bukan crash cryptic):
 ```python
 try:
     ctypes.CDLL('api-ms-win-crt-runtime-l1-1-0.dll')

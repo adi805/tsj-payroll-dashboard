@@ -178,7 +178,7 @@ END
 | App crash mid-process | Excel yang ter-generate mungkin corrupt → user hapus, retry. Log gak ke-save (ini kenapa pakai thread yg write langsung, bukan buffered) |
 | Multiple PROSES click | Button disabled saat running, gak bisa double-click |
 | App force close saat update | Exe baru sudah ter-download ke _update/, next launch: "Update terdeteksi, install sekarang?" |
-| Win 7 tanpa UCRT | "Missing DLL api-ms-win-crt-runtime. Install KB2999226: <link>" |
+| Win 7 (UCRT) | ✅ Dibundel di exe sejak v1.0.1 — tidak perlu install KB2999226 |
 | Folder path ada spasi / Unicode | tkinter filedialog handle, pipeline string-safe |
 
 ## ♿ Accessibility
