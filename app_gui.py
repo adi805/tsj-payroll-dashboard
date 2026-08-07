@@ -375,13 +375,18 @@ class App:
 
     def _log_copy_all(self):
         try:
+            # Enable widget first — state='disabled' on some Windows tkinter causes get() to return empty
+            self.txt.config(state='normal')
             content = self.txt.get('1.0', 'end-1c')
+            self.txt.config(state='disabled')
             if not content.strip():
                 self.lbl_status.config(text='Log kosong — tidak ada yang disalin.')
                 return
             self.root.clipboard_clear()
             self.root.clipboard_append(content)
-            self.root.update()  # flush clipboard ke OS
+            # update_idletasks only processes pending idle callbacks — safer than update()
+            # (update() can re-enter event handlers and cause race conditions)
+            self.root.update_idletasks()
             n = len(content)
             self.lbl_status.config(text='SELESAI — %d karakter log disalin ke clipboard.' % n)
             self._append_log('[COPY] %d karakter log disalin ke clipboard oleh user.' % n, 'ok')
