@@ -37,22 +37,31 @@ jobs:
           pip install "pyinstaller==5.13.2"
 
       # Win 7 TANPA KB2999226: DLL Universal C Runtime (ucrtbase.dll +
-      # api-ms-win-crt-*.dll) diambil dari WinSxS (component store UCRT —
-      # System32 runner tidak menyimpan file api-ms-win-crt-*), lalu
-      # di-bundle ke DALAM exe onefile. Target Win7 zero-install.
+      # api-ms-win-crt-*.dll) diambil dari Windows SDK Redist
+      # (ucrt\DLLs\x64) — runner OS (10.0.26100) TIDAK menyimpan
+      # api-ms-win-crt-* di System32 maupun WinSxS. Fallback: WinSxS.
+      # Lalu di-bundle ke DALAM exe onefile. Target Win7 zero-install.
       - name: Stage UCRT DLLs (bundling buat Win7, zero-install)
         shell: powershell
         run: |
-          $srcDir = Get-ChildItem C:\Windows\WinSxS -Directory -Filter 'amd64_microsoft-windows-ucrt*' |
-                    Sort-Object Name -Descending | Select-Object -First 1
-          if (-not $srcDir) { throw "WinSxS UCRT directory not found" }
-          Write-Host "UCRT source: $($srcDir.FullName)"
+          $kits = "C:\Program Files (x86)\Windows Kits\10\Redist"
+          $candidates = @()
+          $candidates += Get-ChildItem $kits -Directory -ErrorAction SilentlyContinue |
+                        Sort-Object Name -Descending |
+                        ForEach-Object { Join-Path $_.FullName 'ucrt\DLLs\x64' } |
+                        Where-Object { Test-Path $_ }
+          $ws = Get-ChildItem C:\Windows\WinSxS -Directory -Filter 'amd64_microsoft-windows-ucrt*' -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending | Select-Object -First 1
+          if ($ws) { $candidates += $ws.FullName }
+          $srcDir = $candidates | Where-Object { Test-Path (Join-Path $_ 'api-ms-win-crt-*.dll') } | Select-Object -First 1
+          if (-not $srcDir) { throw "No UCRT source found (Windows SDK Redist / WinSxS)" }
+          Write-Host "UCRT source: $srcDir"
           New-Item -ItemType Directory -Force -Path ucrt | Out-Null
-          Copy-Item (Join-Path $srcDir.FullName 'ucrtbase.dll') ucrt\ -ErrorAction SilentlyContinue
-          Copy-Item (Join-Path $srcDir.FullName 'api-ms-win-crt-*.dll') ucrt\ -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $srcDir 'ucrtbase.dll') ucrt\ -ErrorAction SilentlyContinue
+          Copy-Item (Join-Path $srcDir 'api-ms-win-crt-*.dll') ucrt\ -ErrorAction SilentlyContinue
           $count = (Get-ChildItem ucrt -Filter *.dll).Count
           Write-Host "UCRT DLL staged: $count files"
-          if ($count -lt 10) { throw "UCRT staging failed - too few DLLs ($count)" }
+          if (($count -lt 10) -or -not (Test-Path 'ucrt\ucrtbase.dll')) { throw "UCRT staging failed - too few DLLs ($count)" }
 
       - name: PyInstaller onefile (UCRT ter-bundle di dalam exe)
         shell: bash
@@ -93,10 +102,10 @@ jobs:
             **Target:** Windows 7 SP1 / 10 / 11 (64-bit)
             **Ukuran:** ±12-15 MB (onefile, self-contained)
 
-            ### ✅ v1.0.1 — UCRT sudah DIBUNDEL (zero-install)
-            - DLL Universal C Runtime (`ucrtbase.dll` + `api-ms-win-crt-*.dll`) kini ada **DI DALAM exe**
-            - **Windows 7 langsung jalan — TANPA install UCRT KB2999226, tanpa install apa pun**
-            - PyInstaller di-pin ke 5.13.2 (versi terakhir dengan dukungan Win 7 penuh)
+            ### ✅ v1.0.1 — Perbaikan
+            - DLL Universal C Runtime (`ucrtbase.dll` + `api-ms-win-crt-*.dll`) DIBUNDEL **DI DALAM exe** — Windows 7 langsung jalan, TANPA install UCRT KB2999226
+            - `Data Upah TSJ ... ASLI-backup.xlsx` kini **OPSIONAL** — pipeline tetap jalan kalau cuma 11 file (cache fallback ke file utama)
+            - PyInstaller di-pin ke 5.13.2 (dukungan Win 7 penuh)
 
             ### Install
             1. Download `KitUpahTSJ-windows.zip` di bawah
@@ -106,12 +115,12 @@ jobs:
             ### Cara Pakai
             1. Isi **Folder closingan** — folder berisi 12 file closing bulanan
             2. (Opsional) Isi **File output** — default `Kit-Upah-TSJ-AUTO.xlsx` di folder parent
-            3. Klik **PROSES KIT UPAH** — log berjalan realtime, otomatis tersimpan ke `logs/run-<timestamp>.log`
+            3. Klik **PROSES KIT UPAH** — log realtime, tersimpan ke `logs/run-<timestamp>.log`
             4. Klik **Buka file hasil** untuk membuka Excel
-            5. Log toolbar: **SALIN SEMUA LOG** (copy 1-klik), Pilih Semua, Simpan ke File, Bersihkan
+            5. Log toolbar: **SALIN SEMUA LOG**, Pilih Semua, Simpan ke File, Bersihkan
 
             ### Update Otomatis
-            Tools → **Cek Update** → otomatis download release baru, close app, replace exe, restart.
+            Tools → **Cek Update** → download release baru, close app, replace exe, restart.
 
             ### Source
             https://github.com/adi805/tsj-payroll-dashboard

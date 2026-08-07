@@ -96,7 +96,7 @@
 | Non-ASCII (—, …, •, →, ▶) | ✅ Segoe UI Symbol | Used sparingly |
 | Segoe UI font | ✅ Built-in Win 7+ | Default font |
 
-**UCRT bundling (v1.0.1+):** DLL Universal C Runtime (`ucrtbase.dll` + `api-ms-win-crt-*.dll`) ikut ter-bundle **DI DALAM exe** (PyInstaller `--add-binary`, diambil dari WinSxS `amd64_microsoft-windows-ucrt*` di build runner). **Win 7 jalan tanpa install KB2999226 / apa pun.** Check di `__init__` di bawah tetap ada sebagai belt-and-suspenders (kalau ada DLL yang gagal load → dialog informatif, bukan crash cryptic):
+**UCRT bundling (v1.0.1+):** DLL Universal C Runtime (`ucrtbase.dll` + `api-ms-win-crt-*.dll`) ikut ter-bundle **DI DALAM exe** (PyInstaller `--add-binary`, diambil dari Windows SDK Redist (`ucrt\DLLs\x64`) dengan fallback WinSxS di build runner). **Win 7 jalan tanpa install KB2999226 / apa pun.** Check di `__init__` di bawah tetap ada sebagai belt-and-suspenders (kalau ada DLL yang gagal load → dialog informatif, bukan crash cryptic):
 ```python
 try:
     ctypes.CDLL('api-ms-win-crt-runtime-l1-1-0.dll')
