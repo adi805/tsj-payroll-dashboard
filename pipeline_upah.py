@@ -78,10 +78,10 @@ def num(x):
 
 
 # ============ INPUT CHECK ============
-print('[1/6] Cek 12 file hulu...', flush=True)
+print('[1/6] Cek file hulu (11 wajib + ASLI-backup opsional)...', flush=True)
 needed = [
     'Data Upah TSJ Juli 2026.xlsx',
-    'Data Upah TSJ Juli 2026.ASLI-backup.xlsx',
+    # 'Data Upah TSJ Juli 2026.ASLI-backup.xlsx',  # OPSIONAL — cache resolve c8/BPJS; fallback ke file utama
     'Gaji Juli  2026.xlsx',  # NOTE: double space
     'Master Data Karyawan 2026 (1).xlsx',
     'Data Pemanen Juli 2026.xlsx',
@@ -97,7 +97,7 @@ missing = [f for f in needed if not os.path.exists(BASE + f)]
 if missing:
     print(f'  MISSING: {missing}')
     sys.exit(1)
-print(f'  OK: 12/12 file hulu ada di {BASE}')
+print(f'  OK: semua file hulu wajib ada di {BASE}')
 
 # ============ LOAD ============
 print('[2/6] Load MUARA + ASLI backup + DATA INPUT + TF BNI + Master...', flush=True)
@@ -106,8 +106,15 @@ wbf = openpyxl.load_workbook(BASE + 'Data Upah TSJ Juli 2026.xlsx', data_only=Fa
 ws  = wbv['Upah Juli 2026']
 wf  = wbf['Upah Juli 2026']
 di  = wbv['DATA INPUT']
-wba = openpyxl.load_workbook(BASE + 'Data Upah TSJ Juli 2026.ASLI-backup.xlsx', data_only=True)
-wa  = wba['Upah Juli 2026']
+_backup_path = BASE + 'Data Upah TSJ Juli 2026.ASLI-backup.xlsx'
+if os.path.exists(_backup_path):
+    wba = openpyxl.load_workbook(_backup_path, data_only=True)
+    wa  = wba['Upah Juli 2026']
+    print('  ASLI-backup: OK - sumber cache resolve c8/BPJS')
+else:
+    print('  WARN: ASLI-backup tidak ada - fallback cache resolve c8/BPJS ke file utama')
+    wba = None
+    wa  = wbv['Upah Juli 2026']
 wbt = openpyxl.load_workbook(BASE + 'Gaji Juli  2026.xlsx', data_only=True, read_only=True)
 wt  = wbt['TF BNI']
 wbm = openpyxl.load_workbook(BASE + 'Master Data Karyawan 2026 (1).xlsx', data_only=True, read_only=True)
