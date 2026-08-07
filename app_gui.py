@@ -6,7 +6,7 @@ GUI wrapper (tkinter) untuk pipeline_upah.py + auto-update dari GitHub repo.
 """
 import os, sys, json, queue, runpy, shutil, threading, time, traceback, datetime, zipfile
 
-APP_VERSION = '1.0.4'
+APP_VERSION = '1.0.5'
 APP_TITLE = 'Kit Upah TSJ — Dashboard'
 
 GH_REPO = 'adi805/tsj-payroll-dashboard'
@@ -365,7 +365,9 @@ class App:
 
     def _log_copy(self):
         try:
+            self.txt.config(state='normal')
             sel = self.txt.get('sel.first', 'sel.last')
+            self.txt.config(state='disabled')
             if sel:
                 self.root.clipboard_clear()
                 self.root.clipboard_append(sel)
@@ -401,7 +403,7 @@ class App:
     def _log_clear(self):
         self.txt.config(state='normal')
         self.txt.delete('1.0', 'end')
-        self.txt.config(state='normal')
+        self.txt.config(state='disabled')
         self.lbl_status.config(text='Log dibersihkan.')
 
     def _log_save_as(self):
@@ -411,7 +413,9 @@ class App:
             filetypes=[('Log file', '*.log'), ('Text', '*.txt'), ('Semua', '*.*')])
         if f:
             try:
+                self.txt.config(state='normal')
                 content = self.txt.get('1.0', 'end')
+                self.txt.config(state='disabled')
                 with open(f, 'w', encoding='utf-8') as fp: fp.write(content)
                 self.lbl_status.config(text='Log disimpan ke %s' % os.path.basename(f))
             except Exception as e:
@@ -485,7 +489,10 @@ class App:
         f = filedialog.asksaveasfilename(defaultextension='.log', initialfile='log-kit-upah.log',
                                          filetypes=[('Log', '*.log'), ('Text', '*.txt')])
         if f:
-            with open(f, 'w', encoding='utf-8') as fh: fh.write(self.txt.get('1.0', 'end'))
+            self.txt.config(state='normal')
+            content = self.txt.get('1.0', 'end')
+            self.txt.config(state='disabled')
+            with open(f, 'w', encoding='utf-8') as fh: fh.write(content)
 
     def show_help(self):
         messagebox.showinfo(APP_TITLE + ' — Cara Pakai',
