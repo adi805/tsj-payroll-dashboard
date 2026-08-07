@@ -2,6 +2,17 @@
 
 All notable changes to Kit Upah TSJ Dashboard.
 
+## [1.0.6] - 2026-08-07
+
+### Added
+- **Phase 1 — Excel auto-detect columns** (`pipeline_upah.py`): robust column detection by header name (NIK/NAMA/UMUM/KEHADIRAN/BBM/JABATAN/LAIN/OT/TB/DENDA/PTB/PK). Resolves column reordering issues automatically.
+- **Phase 2 — PDF BA parser** (`pdf_parser.py`): parses 23 BA PDFs, extracts amounts via 3-pattern logic (Rp X.XXX,00 comma-decimals, X.XXX dot-as-thousands for OCR compat, standalone 4+ digit fallback). 8/23 PDFs yield extractable amounts.
+- **Phase 3 — Unified reconciliation pipeline** (`unified_pipeline.py`): combines Excel DATA INPUT (270 entries) with PDF BA results. Produces `Kit-Upah-TSJ-REKON.xlsx` with REKONSILIASI sheet showing per-NIK adjustments. Matches PDF person names to DATA INPUT roster via fuzzy name matching.
+
+### Fixed
+- ASLI-backup.xlsx now optional — pipeline gracefully handles missing backup file
+- Pipeline rebuild DATA INPUT from MUARA sheet when DATA INPUT sheet unavailable
+
 ## [1.0.5] - 2026-08-07
 
 ### Fixed
